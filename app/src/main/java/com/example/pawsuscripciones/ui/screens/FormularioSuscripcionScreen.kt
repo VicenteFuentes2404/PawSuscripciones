@@ -7,8 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange // Si usas el ícono relleno
 
 import androidx.compose.material3.ExposedDropdownMenuBox
-
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+
 import androidx.compose.material3.TextField
 
 import android.app.DatePickerDialog
@@ -25,6 +27,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.pawsuscripciones.data.Suscripcion
 import com.example.pawsuscripciones.viewmodel.SuscripcionViewModel
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,19 +71,54 @@ fun FormularioSuscripcionScreen(
         if (montoError != null) Text(montoError ?: "", color = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(8.dp))
 
-        OutlinedTextField(value = java.text.SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(fechaMillis)), onValueChange = {}, enabled = false, modifier = Modifier.fillMaxWidth().clickable { datePicker.show() }, label = { Text("Fecha de vencimiento") }, trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) })
+        OutlinedTextField(value = java.text.SimpleDateFormat
+            ("dd/MM/yyyy",
+            Locale.getDefault()).format(Date(fechaMillis)),
+            onValueChange = {}, enabled = false,
+            modifier = Modifier.fillMaxWidth().clickable { datePicker.show() },
+            label = { Text("Fecha de vencimiento") },
+            trailingIcon = { Icon(Icons.Default.DateRange,
+                contentDescription = null) })
         Spacer(Modifier.height(8.dp))
+
+
 
         val opcionesPago = listOf("Tarjeta Débito", "Tarjeta Crédito", "PayPal", "Otro")
         var expanded by remember { mutableStateOf(false) }
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-            OutlinedTextField(value = metodoPago, onValueChange = {}, readOnly = true, label = { Text("Método de pago") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, modifier = Modifier.fillMaxWidth())
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth() // opcional: hace que todo el box ocupe ancho completo
+        ) {
+            OutlinedTextField(
+                value = metodoPago,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Método de pago") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth() // <- hace que el TextField tenga el ancho completo
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.9f) // <- ajusta el ancho del menú desplegable
+            ) {
                 opcionesPago.forEach { sel ->
-                    DropdownMenuItem(text = { Text(sel) }, onClick = { metodoPago = sel; expanded = false })
+                    DropdownMenuItem(
+                        text = { Text(sel) },
+                        onClick = {
+                            metodoPago = sel
+                            expanded = false
+                        }
+                    )
                 }
             }
         }
+
 
         Spacer(Modifier.height(8.dp))
 

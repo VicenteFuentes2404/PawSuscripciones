@@ -59,6 +59,10 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
+    // Material3
+    implementation("androidx.compose.material3:material3:1.1.0")
+    implementation("androidx.compose.material3:material3-window-size-class:1.3.1")
+
     // --- Jetpack Compose (SIN versiones, el BOM se encarga) ---
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
