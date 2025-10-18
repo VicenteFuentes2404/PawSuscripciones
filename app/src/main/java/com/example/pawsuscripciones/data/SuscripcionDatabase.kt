@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.example.pawsuscripciones.data.SuscripcionDao
 import com.example.pawsuscripciones.data.Suscripcion
 
-@Database(entities = [Suscripcion::class], version = 1, exportSchema = false)
+@Database(entities = [Suscripcion::class], version = 2, exportSchema = false) //
 abstract class AppDatabase : RoomDatabase() {
     abstract fun suscripcionDao(): SuscripcionDao
 
@@ -20,7 +20,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "pawsuscripciones.db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = inst
                 inst
             }

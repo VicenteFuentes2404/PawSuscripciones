@@ -11,6 +11,5 @@ data class Suscripcion(
     val monto: Double,
     val fechaVencimiento: Long,
     val metodoPago: String,
-    val etiqueta: String?,
-    val recordar: Boolean
+    val etiqueta: String,
 )

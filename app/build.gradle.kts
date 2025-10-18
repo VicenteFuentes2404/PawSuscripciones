@@ -60,7 +60,6 @@ dependencies {
     androidTestImplementation(composeBom)
 
     // Material3
-    implementation("androidx.compose.material3:material3:1.1.0")
     implementation("androidx.compose.material3:material3-window-size-class:1.3.1")
 
     // --- Jetpack Compose (SIN versiones, el BOM se encarga) ---
@@ -93,6 +92,9 @@ dependencies {
 
     // --- WorkManager (para tareas en background) ---
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    implementation("com.google.accompanist:accompanist-navigation-animation:0.32.0")
+    implementation("androidx.compose.material3:material3:1.1.0")
 
     // --- Accompanist (permisos y extensiones útiles) ---
     implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")

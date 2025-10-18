@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.pawsuscripciones.data.AppDatabase
 import com.example.pawsuscripciones.data.Suscripcion
 import com.example.pawsuscripciones.data.SuscripcionRepository
+import com.example.pawsuscripciones.notifications.NotificationHelper
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.*
 
 data class FormValidationResult(
     val ok: Boolean,
@@ -17,7 +19,11 @@ data class FormValidationResult(
     val montoError: String? = null
 )
 
-class SuscripcionViewModel(application: Application) : AndroidViewModel(application) {
+// 1. Modificamos el constructor para que acepte el NotificationHelper
+class SuscripcionViewModel(
+    application: Application,
+    private val notificationHelper: NotificationHelper // <-- AÑADIDO
+) : AndroidViewModel(application) {
 
     private val repo: SuscripcionRepository
 
@@ -26,13 +32,22 @@ class SuscripcionViewModel(application: Application) : AndroidViewModel(applicat
         repo = SuscripcionRepository(db.suscripcionDao())
     }
 
-    // Exponemos un StateFlow para que la UI lo observe de forma reactiva
     val suscripciones: StateFlow<List<Suscripcion>> =
         repo.getAll().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    // 2. Modificamos la función 'agregar' para que revise la fecha
     fun agregar(s: Suscripcion, onDone: (() -> Unit)? = null) {
         viewModelScope.launch {
             repo.insert(s)
+
+            // 3. Lógica para comprobar si la fecha es hoy y lanzar la notificación
+            if (esFechaDeHoy(s.fechaVencimiento)) {
+                notificationHelper.showNotificationDemo(
+                    "Una de tus Suscripciones vence hoy!",
+                    "Tu suscripción a '${s.nombre}' vence hoy."
+                )
+            }
+
             onDone?.invoke()
         }
     }
@@ -43,7 +58,16 @@ class SuscripcionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // Validación centralizada y desacoplada de la UI
+    // 4. Función auxiliar para comprobar si la fecha es hoy
+    private fun esFechaDeHoy(fechaMillis: Long): Boolean {
+        val hoy = Calendar.getInstance()
+        val fechaSuscripcion = Calendar.getInstance().apply {
+            timeInMillis = fechaMillis
+        }
+        return hoy.get(Calendar.YEAR) == fechaSuscripcion.get(Calendar.YEAR) &&
+                hoy.get(Calendar.DAY_OF_YEAR) == fechaSuscripcion.get(Calendar.DAY_OF_YEAR)
+    }
+
     fun validarFormulario(nombre: String, montoText: String?): FormValidationResult {
         var nombreErr: String? = null
         var montoErr: String? = null

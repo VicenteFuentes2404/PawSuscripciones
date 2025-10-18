@@ -1,6 +1,8 @@
 package com.example.pawsuscripciones.navigation
 
+import android.app.Application
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,6 +12,7 @@ import com.example.pawsuscripciones.ui.screens.FormularioSuscripcionScreen
 import com.example.pawsuscripciones.ui.screens.InicioScreen
 import com.example.pawsuscripciones.ui.screens.SuscripcionesScreen
 import com.example.pawsuscripciones.viewmodel.SuscripcionViewModel
+import com.example.pawsuscripciones.viewmodel.SuscripcionViewModelFactory
 
 sealed class Routes(val route: String) {
     object Inicio : Routes("inicio")
@@ -20,7 +23,13 @@ sealed class Routes(val route: String) {
 @Composable
 fun NavGraph(notificationHelper: NotificationHelper) {
     val navController = rememberNavController()
-    val vm: SuscripcionViewModel = viewModel()
+    // Obtiene el contexto de la aplicación para pasárselo al factory
+    val application = LocalContext.current.applicationContext as Application
+
+    // Crea el ViewModel usando el Factory para inyectar el NotificationHelper
+    val vm: SuscripcionViewModel = viewModel(
+        factory = SuscripcionViewModelFactory(application, notificationHelper)
+    )
 
     NavHost(navController = navController, startDestination = Routes.Inicio.route) {
         composable(Routes.Inicio.route) {
@@ -45,7 +54,8 @@ fun NavGraph(notificationHelper: NotificationHelper) {
         composable(Routes.Formulario.route) {
             FormularioSuscripcionScreen(
                 onSaved = { navController.popBackStack() },
-                viewModel = vm
+                viewModel = vm,
+                onBack = { navController.popBackStack() }
             )
         }
     }
