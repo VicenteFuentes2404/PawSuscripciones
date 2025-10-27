@@ -16,8 +16,7 @@ class MainActivity : ComponentActivity() {
     private val requestCalendarLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        // Aquí ya terminó la petición de calendario
-        // Puedes hacer algo si quieres
+      
     }
 
     private val requestNotificationLauncher = registerForActivityResult(
