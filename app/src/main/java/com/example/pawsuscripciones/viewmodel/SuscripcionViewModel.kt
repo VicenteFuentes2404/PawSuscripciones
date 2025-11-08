@@ -58,6 +58,34 @@ class SuscripcionViewModel(
         }
     }
 
+
+    fun actualizar(s: Suscripcion, onDone: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            repo.update(s)
+
+            // Volvemos a comprobar la fecha por si el usuario la actualizó para hoy
+            if (esFechaDeHoy(s.fechaVencimiento)) {
+                notificationHelper.showNotificationDemo(
+                    "Suscripción Actualizada",
+                    "Tu suscripción a '${s.nombre}' vence hoy."
+                )
+            }
+
+            onDone?.invoke()
+        }
+    }
+
+    /**
+     * Obtiene una suscripción por su ID.
+     * Se usa para cargar los datos en el formulario de edición.
+     */
+    suspend fun getSuscripcionById(id: Long): Suscripcion? {
+        return repo.getById(id)
+    }
+
+
+
+
     // 4. Función auxiliar para comprobar si la fecha es hoy
     private fun esFechaDeHoy(fechaMillis: Long): Boolean {
         val hoy = Calendar.getInstance()

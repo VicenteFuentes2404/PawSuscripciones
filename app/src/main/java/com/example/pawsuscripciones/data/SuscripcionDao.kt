@@ -17,4 +17,7 @@ interface SuscripcionDao {
 
     @Query("SELECT * FROM suscripciones WHERE id = :id")
     suspend fun getById(id: Long): Suscripcion?
+
+    @Update
+    suspend fun update(suscripcion: Suscripcion)
 }

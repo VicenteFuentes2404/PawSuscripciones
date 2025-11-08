@@ -28,6 +28,7 @@ import java.util.*
 fun SuscripcionesScreen(
     viewModel: SuscripcionViewModel,
     onAdd: () -> Unit,
+    onEdit: (Long) -> Unit,
     onShowNotificationDemo: () -> Unit
 ) {
     val lista = viewModel.suscripciones.collectAsState()
@@ -87,7 +88,12 @@ fun SuscripcionesScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(lista.value) { s ->
-                            SuscripcionCard(s, onDelete = { viewModel.eliminar(s) })
+                            // ▼▼▼ CAMBIO ▼▼▼
+                            SuscripcionCard(
+                                s = s,
+                                onDelete = { viewModel.eliminar(s) },
+                                onEdit = { onEdit(s.id) }
+                            )
                         }
                     }
                 }
@@ -118,7 +124,7 @@ fun SuscripcionesScreen(
 
 
 @Composable
-fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit) {
+fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) { // <-- AÑADIDO onEdit
     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val fecha = sdf.format(Date(s.fechaVencimiento))
 
@@ -134,7 +140,6 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit) {
         set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    // ▼▼▼ CAMBIO: Se definen colores para el fondo y texto de cada etiqueta ▼▼▼
     val (etiquetaColor, etiquetaTextColor) = when (s.etiqueta) {
         "Entretenimiento" -> Pair(Color(0xFFE9D5FF), Color(0xFF581C87))
         "Educación"       -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46))
@@ -173,9 +178,8 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit) {
                 Text("Vence el $fecha", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(10.dp))
 
-                // ▼▼▼ CAMBIO: Fila para mostrar la etiqueta de color y el método de pago ▼▼▼
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { // Se usa Column
+                    Surface( // Etiqueta (sin cambios)
                         shape = RoundedCornerShape(6.dp),
                         color = etiquetaColor,
                     ) {
@@ -186,14 +190,13 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit) {
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
+
                     Text(
-                        text = "· ${s.metodoPago}",
+                        text = s.metodoPago,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // ▲▲▲ FIN DEL CAMBIO ▲▲▲
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -213,17 +216,33 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit) {
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
 
-                Text(
-                    text = "Eliminar",
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .graphicsLayer { scaleX = scale; scaleY = scale }
-                        .pointerInput(Unit) { detectTapGestures(onPress = { isPressed = true; tryAwaitRelease(); isPressed = false }, onTap = { showDialog = true }) }
-                )
+                // Agrupamos Editar y Eliminar en una Fila
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Texto "Editar"
+                    Text(
+                        text = "Editar",
+                        color = MaterialTheme.colorScheme.primary, // Color primario
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .pointerInput(Unit) { detectTapGestures(onTap = { onEdit() }) } // Acción
+                    )
+
+                    Spacer(Modifier.width(16.dp)) // Espacio
+
+                    // Texto "Eliminar"
+                    Text(
+                        text = "Eliminar",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .graphicsLayer { scaleX = scale; scaleY = scale }
+                            .pointerInput(Unit) { detectTapGestures(onPress = { isPressed = true; tryAwaitRelease(); isPressed = false }, onTap = { showDialog = true }) }
+                    )
+                }
             }
         }
     }

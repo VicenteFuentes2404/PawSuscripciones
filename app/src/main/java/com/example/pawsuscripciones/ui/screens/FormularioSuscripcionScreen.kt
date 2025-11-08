@@ -31,6 +31,7 @@ import com.example.pawsuscripciones.data.Suscripcion
 import com.example.pawsuscripciones.viewmodel.SuscripcionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,9 +39,16 @@ import java.util.*
 fun FormularioSuscripcionScreen(
     onSaved: () -> Unit,
     onBack: () -> Unit,
-    viewModel: SuscripcionViewModel
+    viewModel: SuscripcionViewModel,
+    suscripcionId: Long
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Determinar si estamos en modo edición
+    val isEditing = suscripcionId != -1L
+
+    // Estados del formulario
     var nombre by remember { mutableStateOf("") }
     var montoText by remember { mutableStateOf("") }
     var fechaMillis by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -51,7 +59,23 @@ fun FormularioSuscripcionScreen(
     var montoError by remember { mutableStateOf<String?>(null) }
 
     var showSuccessMessage by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+
+    // Formateador para convertir Double a String sin decimales (ej. 2500.0 -> "2500")
+    val montoFormatter = remember { DecimalFormat("#") }
+
+    // Cargar datos si estamos editando
+    LaunchedEffect(suscripcionId) {
+        if (isEditing) {
+            val s = viewModel.getSuscripcionById(suscripcionId)
+            if (s != null) {
+                nombre = s.nombre
+                montoText = montoFormatter.format(s.monto)
+                fechaMillis = s.fechaVencimiento
+                metodoPago = s.metodoPago
+                etiqueta = s.etiqueta
+            }
+        }
+    }
 
     val textFieldStyle = TextStyle(fontSize = 18.sp)
 
@@ -67,7 +91,7 @@ fun FormularioSuscripcionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Añadir Suscripción",
+                        text = if (isEditing) "Editar Suscripción" else "Añadir Suscripción",
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -82,7 +106,7 @@ fun FormularioSuscripcionScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // Campos de Nombre, Monto y Fecha (sin cambios)
+            // Campos de Nombre, Monto y Fecha (sin cambios estéticos)
             OutlinedTextField(
                 value = nombre,
                 onValueChange = { nombre = it; nombreError = null },
@@ -148,7 +172,7 @@ fun FormularioSuscripcionScreen(
             }
             Spacer(Modifier.height(24.dp))
 
-            // ▼▼▼ CAMBIO: Selector de etiquetas con botones ▼▼▼
+            // Selector de etiquetas con botones (sin cambios)
             val opcionesEtiqueta = listOf("Entretenimiento", "Educación", "Productividad", "Utilidad")
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -157,7 +181,6 @@ fun FormularioSuscripcionScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
                 )
-                // Usamos FlowRow para que los botones se ajusten si no caben en una línea
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -182,7 +205,6 @@ fun FormularioSuscripcionScreen(
                     }
                 }
             }
-            // ▲▲▲ FIN DEL CAMBIO ▲▲▲
 
             Spacer(Modifier.weight(1f))
             AnimatedVisibility(
@@ -191,7 +213,7 @@ fun FormularioSuscripcionScreen(
                 exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(400, easing = FastOutLinearInEasing)) + fadeOut(tween(200))
             ) {
                 Text(
-                    text = "¡Suscripción guardada!",
+                    text = if (isEditing) "¡Suscripción actualizada!" else "¡Suscripción guardada!",
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -205,9 +227,27 @@ fun FormularioSuscripcionScreen(
                         nombreError = result.nombreError; montoError = result.montoError; return@Button
                     }
                     val montoVal = montoText.toDouble()
-                    val nueva = Suscripcion(nombre = nombre.trim(), monto = montoVal, fechaVencimiento = fechaMillis, metodoPago = metodoPago, etiqueta = etiqueta)
-                    viewModel.agregar(nueva) {
+
+                    val suscripcion = Suscripcion(
+                        id = if (isEditing) suscripcionId else 0, // Mantenemos el ID si editamos
+                        nombre = nombre.trim(),
+                        monto = montoVal,
+                        fechaVencimiento = fechaMillis,
+                        metodoPago = metodoPago,
+                        etiqueta = etiqueta
+                    )
+
+                    // ▼▼▼ CAMBIO ▼▼▼
+                    // Se especifica el tipo explícito () -> Unit para evitar el mismatch (Job vs Unit)
+                    val onDone: () -> Unit = {
                         coroutineScope.launch { showSuccessMessage = true; delay(1500); onSaved() }
+                    }
+                    // ▲▲▲ FIN CAMBIO ▲▲▲
+
+                    if (isEditing) {
+                        viewModel.actualizar(suscripcion, onDone)
+                    } else {
+                        viewModel.agregar(suscripcion, onDone)
                     }
                 },
                 modifier = Modifier
@@ -217,7 +257,7 @@ fun FormularioSuscripcionScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    "Guardar",
+                    text = if (isEditing) "Actualizar" else "Guardar",
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold

@@ -13,11 +13,20 @@ import com.example.pawsuscripciones.ui.screens.InicioScreen
 import com.example.pawsuscripciones.ui.screens.SuscripcionesScreen
 import com.example.pawsuscripciones.viewmodel.SuscripcionViewModel
 import com.example.pawsuscripciones.viewmodel.SuscripcionViewModelFactory
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 sealed class Routes(val route: String) {
     object Inicio : Routes("inicio")
     object Suscripciones : Routes("suscripciones")
-    object Formulario : Routes("formulario")
+    object Formulario : Routes("formulario?id={id}") {
+        const val routeWithArgs = "formulario?id={id}"
+        const val argId = "id"
+        // Ruta para crear uno nuevo
+        fun createRouteNuevo() = "formulario?id=-1"
+        // Ruta para editar uno existente
+        fun createRouteEditar(id: Long) = "formulario?id=$id"
+    }
 }
 
 @Composable
@@ -41,21 +50,31 @@ fun NavGraph(notificationHelper: NotificationHelper) {
         composable(Routes.Suscripciones.route) {
             SuscripcionesScreen(
                 viewModel = vm,
-                onAdd = { navController.navigate(Routes.Formulario.route) },
+                onAdd = { navController.navigate(Routes.Formulario.createRouteNuevo()) },
+                // Añadimos el callback para editar
+                onEdit = { id -> navController.navigate(Routes.Formulario.createRouteEditar(id)) },
                 onShowNotificationDemo = {
-                    notificationHelper.showNotificationDemo(
-                        "Recordatorio",
-                        "Tienes una suscripción próxima"
-                    )
+                    // ... (notificationHelper)
                 }
             )
         }
 
-        composable(Routes.Formulario.route) {
+        // Actualizamos el composable para que reciba el argumento "id"
+        composable(
+            route = Routes.Formulario.routeWithArgs, // Usar la nueva ruta con argumentos
+            arguments = listOf(navArgument(Routes.Formulario.argId) {
+                type = NavType.LongType
+                defaultValue = -1L // -1L indica "nuevo"
+            })
+        ) { backStackEntry ->
+            // Obtenemos el ID de los argumentos de la ruta
+            val id = backStackEntry.arguments?.getLong(Routes.Formulario.argId) ?: -1L
+
             FormularioSuscripcionScreen(
                 onSaved = { navController.popBackStack() },
                 viewModel = vm,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                suscripcionId = id
             )
         }
     }
