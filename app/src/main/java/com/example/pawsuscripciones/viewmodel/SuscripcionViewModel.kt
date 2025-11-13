@@ -1,13 +1,13 @@
 package com.example.pawsuscripciones.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pawsuscripciones.data.AppDatabase
 import com.example.pawsuscripciones.data.Suscripcion
 import com.example.pawsuscripciones.data.SuscripcionRepository
 import com.example.pawsuscripciones.notifications.NotificationHelper
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,79 +19,84 @@ data class FormValidationResult(
     val montoError: String? = null
 )
 
-// 1. Modificamos el constructor para que acepte el NotificationHelper
+data class DivisaState(
+    val selectedCode: String = "CLP",
+    val rates: Map<String, Double> = emptyMap(),
+    val error: String? = null
+)
+
 class SuscripcionViewModel(
     application: Application,
-    private val notificationHelper: NotificationHelper // <-- AÑADIDO
+    private val notificationHelper: NotificationHelper,
+    private val repo: SuscripcionRepository
 ) : AndroidViewModel(application) {
 
-    private val repo: SuscripcionRepository
+    private val _divisaState = MutableStateFlow(DivisaState())
+    val divisaState: StateFlow<DivisaState> = _divisaState
 
-    init {
-        val db = AppDatabase.getInstance(application)
-        repo = SuscripcionRepository(db.suscripcionDao())
-    }
 
     val suscripciones: StateFlow<List<Suscripcion>> =
-        repo.getAll().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        repo.getAll().stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, emptyList())
 
-    // 2. Modificamos la función 'agregar' para que revise la fecha
+    fun refreshData() {
+        viewModelScope.launch {
+            try {
+                repo.refreshSuscripciones()
+                val response = repo.getExchangeRates()
+                if (response != null && response.rates.isNotEmpty()) {
+                    _divisaState.value = _divisaState.value.copy(rates = response.rates, error = null)
+                } else {
+                    _divisaState.value = _divisaState.value.copy(error = "Error cargando divisas")
+                }
+            } catch (e: Exception) {
+                Log.e("SuscripcionViewModel", "Error: ${e.message}")
+            }
+        }
+    }
+
+    fun setSelectedDivisa(code: String) {
+        _divisaState.value = _divisaState.value.copy(selectedCode = code)
+    }
+
+    fun getConvertedAmount(totalCLP: Double): Double {
+        val selectedCode = _divisaState.value.selectedCode
+        if (selectedCode == "CLP") return totalCLP
+        val rate = _divisaState.value.rates[selectedCode] ?: return totalCLP
+        return totalCLP * rate
+    }
+
     fun agregar(s: Suscripcion, onDone: (() -> Unit)? = null) {
         viewModelScope.launch {
-            repo.insert(s)
-
-            // 3. Lógica para comprobar si la fecha es hoy y lanzar la notificación
-            if (esFechaDeHoy(s.fechaVencimiento)) {
-                notificationHelper.showNotificationDemo(
-                    "Una de tus Suscripciones vence hoy!",
-                    "Tu suscripción a '${s.nombre}' vence hoy."
-                )
+            try {
+                val guardada = repo.insert(s)
+                if (esFechaDeHoy(guardada.fechaVencimiento)) {
+                    notificationHelper.showNotificationDemo("Vence hoy", "Tu suscripción vence hoy")
+                }
+                onDone?.invoke()
+            } catch (e: Exception) {
+                Log.e("VM", "Error: ${e.message}")
             }
-
-            onDone?.invoke()
         }
     }
 
     fun eliminar(s: Suscripcion) {
-        viewModelScope.launch {
-            repo.delete(s)
-        }
+        viewModelScope.launch { try { repo.delete(s) } catch (e: Exception) {} }
     }
-
 
     fun actualizar(s: Suscripcion, onDone: (() -> Unit)? = null) {
         viewModelScope.launch {
-            repo.update(s)
-
-            // Volvemos a comprobar la fecha por si el usuario la actualizó para hoy
-            if (esFechaDeHoy(s.fechaVencimiento)) {
-                notificationHelper.showNotificationDemo(
-                    "Suscripción Actualizada",
-                    "Tu suscripción a '${s.nombre}' vence hoy."
-                )
-            }
-
-            onDone?.invoke()
+            try {
+                repo.update(s)
+                onDone?.invoke()
+            } catch (e: Exception) {}
         }
     }
 
-    /**
-     * Obtiene una suscripción por su ID.
-     * Se usa para cargar los datos en el formulario de edición.
-     */
-    suspend fun getSuscripcionById(id: Long): Suscripcion? {
-        return repo.getById(id)
-    }
+    suspend fun getSuscripcionById(id: Long): Suscripcion? = repo.getById(id)
 
-
-
-
-    // 4. Función auxiliar para comprobar si la fecha es hoy
     private fun esFechaDeHoy(fechaMillis: Long): Boolean {
         val hoy = Calendar.getInstance()
-        val fechaSuscripcion = Calendar.getInstance().apply {
-            timeInMillis = fechaMillis
-        }
+        val fechaSuscripcion = Calendar.getInstance().apply { timeInMillis = fechaMillis }
         return hoy.get(Calendar.YEAR) == fechaSuscripcion.get(Calendar.YEAR) &&
                 hoy.get(Calendar.DAY_OF_YEAR) == fechaSuscripcion.get(Calendar.DAY_OF_YEAR)
     }
@@ -99,13 +104,18 @@ class SuscripcionViewModel(
     fun validarFormulario(nombre: String, montoText: String?): FormValidationResult {
         var nombreErr: String? = null
         var montoErr: String? = null
-        if (nombre.isBlank()) nombreErr = "Este campo es requerido"
+
+        if (nombre.isBlank()) {
+            nombreErr = "Este campo es requerido"
+        }
+
         val montoVal = montoText?.toDoubleOrNull()
         if (montoText.isNullOrBlank()) {
             montoErr = "Ingresa un monto"
         } else if (montoVal == null || montoVal <= 0.0) {
             montoErr = "Ingresa un monto válido mayor a 0"
         }
+
         val ok = nombreErr == null && montoErr == null
         return FormValidationResult(ok = ok, nombreError = nombreErr, montoError = montoErr)
     }
