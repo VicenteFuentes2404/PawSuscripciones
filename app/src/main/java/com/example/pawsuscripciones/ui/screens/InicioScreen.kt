@@ -18,12 +18,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp // ▼▼▼ CAMBIO ▼▼▼ Import para tamaño de fuente
 import com.example.pawsuscripciones.R
+import com.example.pawsuscripciones.viewmodel.SuscripcionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun InicioScreen(onEntrar: () -> Unit) {
+fun InicioScreen(viewModel: SuscripcionViewModel, onEntrar: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -85,7 +86,7 @@ fun InicioScreen(onEntrar: () -> Unit) {
                 AnimatedContent(
                     targetState = loading,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) with fadeOut(animationSpec = tween(300))
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
                     }, label = "loadingContent"
                 ) { targetLoading ->
                     if (targetLoading) {
@@ -110,19 +111,19 @@ fun InicioScreen(onEntrar: () -> Unit) {
                             onClick = {
                                 loading = true
                                 coroutineScope.launch {
-                                    delay(1400)
+                                    viewModel.refreshData()
                                     onEntrar()
                                 }
                             },
                             modifier = Modifier
-                                // ▼▼▼ CAMBIO ▼▼▼ Hacemos el botón más ancho y alto
+
                                 .fillMaxWidth(0.8f)
                                 .height(64.dp),
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Text(
                                 text = "Entrar",
-                                // ▼▼▼ CAMBIO ▼▼▼ Aumentamos tamaño de la fuente del botón
+
                                 fontSize = 20.sp,
                                 color = MaterialTheme.colorScheme.onPrimary
                             )

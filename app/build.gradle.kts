@@ -99,6 +99,18 @@ dependencies {
     // --- Accompanist (permisos y extensiones útiles) ---
     implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
 
+
+    // --- Retrofit (Para consumir la API REST) ---
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // --- Gson Converter (Para convertir JSON a objetos Kotlin) ---
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // --- (Opcional) OkHttp Logging Interceptor (Para depurar llamadas de red) ---
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+
+
     // --- Tests (SIN versiones, el BOM se encarga) ---
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

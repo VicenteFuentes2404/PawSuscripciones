@@ -10,7 +10,10 @@ interface SuscripcionDao {
     fun getAll(): Flow<List<Suscripcion>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(suscripcion: Suscripcion): Long
+    suspend fun insert(suscripcion: Suscripcion)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(suscripciones: List<Suscripcion>)
 
     @Delete
     suspend fun delete(suscripcion: Suscripcion)

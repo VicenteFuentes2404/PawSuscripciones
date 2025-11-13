@@ -6,6 +6,9 @@
     <!-- Declarar POST_NOTIFICATIONS en manifest no es obligatorio, pero puede incluirse -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- permiso para usar internet -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="PawSuscripciones"
         android:icon="@mipmap/ic_launcher"

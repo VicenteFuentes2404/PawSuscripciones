@@ -7,7 +7,9 @@ import androidx.room.RoomDatabase
 import com.example.pawsuscripciones.data.SuscripcionDao
 import com.example.pawsuscripciones.data.Suscripcion
 
-@Database(entities = [Suscripcion::class], version = 2, exportSchema = false) //
+
+// Se incrementa la versión de la base de datos de 3 a 4
+@Database(entities = [Suscripcion::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun suscripcionDao(): SuscripcionDao
 
@@ -21,6 +23,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pawsuscripciones.db"
                 )
+                    // Esto es importante: al detectar un cambio de versión,
+                    // destruirá la base de datos vieja y creará una nueva.
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = inst

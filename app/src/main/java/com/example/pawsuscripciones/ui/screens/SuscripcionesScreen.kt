@@ -88,11 +88,14 @@ fun SuscripcionesScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(lista.value) { s ->
-                            // ▼▼▼ CAMBIO ▼▼▼
                             SuscripcionCard(
                                 s = s,
                                 onDelete = { viewModel.eliminar(s) },
-                                onEdit = { onEdit(s.id) }
+                                onEdit = {
+                                    s.id?.let { nonNullId ->
+                                        onEdit(nonNullId)
+                                    }
+                                }
                             )
                         }
                     }

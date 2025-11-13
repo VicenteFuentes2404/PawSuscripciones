@@ -36,6 +36,7 @@ fun NavGraph(notificationHelper: NotificationHelper) {
     val application = LocalContext.current.applicationContext as Application
 
     // Crea el ViewModel usando el Factory para inyectar el NotificationHelper
+    // Esta instancia 'vm' se compartirá entre todas las pantallas.
     val vm: SuscripcionViewModel = viewModel(
         factory = SuscripcionViewModelFactory(application, notificationHelper)
     )
@@ -43,6 +44,9 @@ fun NavGraph(notificationHelper: NotificationHelper) {
     NavHost(navController = navController, startDestination = Routes.Inicio.route) {
         composable(Routes.Inicio.route) {
             InicioScreen(
+                // Pasamos el ViewModel a la pantalla de inicio para que
+                // pueda llamar a refreshData() al presionar "Entrar".
+                viewModel = vm,
                 onEntrar = { navController.navigate(Routes.Suscripciones.route) }
             )
         }

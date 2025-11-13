@@ -9,6 +9,7 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -158,7 +159,7 @@ fun FormularioSuscripcionScreen(
                     value = metodoPago, onValueChange = {}, readOnly = true,
                     label = { Text("Método de pago") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedPago) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                     textStyle = textFieldStyle
                 )
                 ExposedDropdownMenu(expanded = expandedPago, onDismissRequest = { expandedPago = false }, modifier = Modifier.fillMaxWidth(0.9f)) {
@@ -229,7 +230,9 @@ fun FormularioSuscripcionScreen(
                     val montoVal = montoText.toDouble()
 
                     val suscripcion = Suscripcion(
-                        id = if (isEditing) suscripcionId else 0, // Mantenemos el ID si editamos
+                        // Si no estamos editando, pasamos null en lugar de 0
+                        // para que la API/Room generen el ID.
+                        id = if (isEditing) suscripcionId else null,
                         nombre = nombre.trim(),
                         monto = montoVal,
                         fechaVencimiento = fechaMillis,
@@ -237,12 +240,9 @@ fun FormularioSuscripcionScreen(
                         etiqueta = etiqueta
                     )
 
-                    // ▼▼▼ CAMBIO ▼▼▼
-                    // Se especifica el tipo explícito () -> Unit para evitar el mismatch (Job vs Unit)
                     val onDone: () -> Unit = {
                         coroutineScope.launch { showSuccessMessage = true; delay(1500); onSaved() }
                     }
-                    // ▲▲▲ FIN CAMBIO ▲▲▲
 
                     if (isEditing) {
                         viewModel.actualizar(suscripcion, onDone)
