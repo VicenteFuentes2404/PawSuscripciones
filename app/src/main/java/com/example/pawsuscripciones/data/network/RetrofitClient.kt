@@ -37,3 +37,26 @@ object RetrofitClient {
         retrofit.create(SuscripcionApiService::class.java)
     }
 }
+
+object RetrofitClientDivisa {
+    // URL Base de la nueva API
+    private const val BASE_URL_DIVISA = "https://api.exchangerate-api.com/"
+
+    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
+    private val httpClient = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor)
+        .build()
+
+    val instance: DivisaApiService by lazy {
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL_DIVISA)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(httpClient)
+            .build()
+
+        retrofit.create(DivisaApiService::class.java)
+    }
+}

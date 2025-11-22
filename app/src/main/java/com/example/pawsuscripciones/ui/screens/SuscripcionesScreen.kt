@@ -31,14 +31,43 @@ fun SuscripcionesScreen(
     onEdit: (Long) -> Unit,
     onShowNotificationDemo: () -> Unit
 ) {
-    val lista = viewModel.suscripciones.collectAsState()
-    val totalMensual = lista.value.sumOf { it.monto }
+    // 1. Observamos los estados del ViewModel
+    val lista by viewModel.suscripciones.collectAsState()
+    val divisaState by viewModel.divisaState.collectAsState()
 
-    val clpFormatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("es", "CL")).apply {
-            maximumFractionDigits = 0
+    // 2. Calculamos el total en CLP (base)
+    val totalMensualCLP = lista.sumOf { it.monto }
+
+    // 3. Calculamos el total convertido reactivamente en la UI
+    val tasaActual = if (divisaState.selectedCode == "CLP") 1.0 else divisaState.rates[divisaState.selectedCode] ?: 1.0
+    val totalMensualConvertido = totalMensualCLP * tasaActual
+
+    // 4. Preparamos el formateador de moneda
+    val formatter = remember(divisaState.selectedCode) {
+        try {
+            val locale = if (divisaState.selectedCode == "CLP") {
+                Locale("es", "CL")
+            } else {
+                Locale.getDefault()
+            }
+            NumberFormat.getCurrencyInstance(locale).apply {
+                currency = Currency.getInstance(divisaState.selectedCode)
+                maximumFractionDigits = if (divisaState.selectedCode == "CLP") 0 else 2
+            }
+        } catch (e: Exception) {
+            NumberFormat.getCurrencyInstance().apply {
+                currency = Currency.getInstance("CLP")
+                maximumFractionDigits = 0
+            }
         }
     }
+
+    // 5. Lista de monedas disponibles
+    val availableCurrencies = remember(divisaState.rates) {
+        (listOf("CLP") + divisaState.rates.keys).distinct().sorted()
+    }
+
+    var expandedDivisa by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -62,7 +91,7 @@ fun SuscripcionesScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-            if (lista.value.isEmpty()) {
+            if (lista.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize().weight(1f),
                     contentAlignment = Alignment.Center
@@ -72,22 +101,86 @@ fun SuscripcionesScreen(
             } else {
                 Column(modifier = Modifier.weight(1f)) {
                     Spacer(Modifier.height(16.dp))
+
+                    // Título "Monto estimado..."
                     Text(
                         text = "Monto estimado mensual",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = clpFormatter.format(totalMensual),
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+
+                    // --- FILA HÍBRIDA: MONTO + SELECTOR ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start // Alineación al inicio para que queden juntos
+                    ) {
+                        // 1. El Monto (ajustamos un poco el tamaño para que quepa bien)
+                        Text(
+                            text = formatter.format(totalMensualConvertido),
+                            fontSize = 42.sp, // Ligeramente más pequeño que 48sp para balancear
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            // Usamos weight(fill = false) para que ocupe lo que necesita pero no empuje al selector al infinito si sobra espacio
+                            modifier = Modifier.weight(weight = 1f, fill = false)
+                        )
+
+                        Spacer(Modifier.width(12.dp))
+
+                        // 2. El Selector (Compacto)
+                        ExposedDropdownMenuBox(
+                            expanded = expandedDivisa,
+                            onExpandedChange = { expandedDivisa = !expandedDivisa },
+                            modifier = Modifier.width(110.dp) // Ancho fijo y contenido
+                        ) {
+                            OutlinedTextField(
+                                value = divisaState.selectedCode,
+                                onValueChange = { },
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedDivisa) },
+                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp), // Bordes más redondeados
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedDivisa,
+                                onDismissRequest = { expandedDivisa = false }
+                            ) {
+                                availableCurrencies.forEach { code ->
+                                    DropdownMenuItem(
+                                        text = { Text(code) },
+                                        onClick = {
+                                            viewModel.setSelectedDivisa(code)
+                                            expandedDivisa = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Mensaje de error discreto si falla la API
+                    if (divisaState.error != null) {
+                        Text(
+                            text = "⚠ ${divisaState.error}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
                     Spacer(Modifier.height(24.dp))
+
+                    // --- LISTA DE SUSCRIPCIONES ---
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(lista.value) { s ->
+                        items(lista) { s ->
                             SuscripcionCard(
                                 s = s,
                                 onDelete = { viewModel.eliminar(s) },
@@ -103,6 +196,8 @@ fun SuscripcionesScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+
+            // --- BOTÓN AÑADIR ---
             Button(
                 onClick = onAdd,
                 modifier = Modifier
@@ -127,7 +222,7 @@ fun SuscripcionesScreen(
 
 
 @Composable
-fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) { // <-- AÑADIDO onEdit
+fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) {
     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val fecha = sdf.format(Date(s.fechaVencimiento))
 
@@ -181,8 +276,8 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) { 
                 Text("Vence el $fecha", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(10.dp))
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { // Se usa Column
-                    Surface( // Etiqueta (sin cambios)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = etiquetaColor,
                     ) {
@@ -203,6 +298,7 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) { 
             }
 
             Column(horizontalAlignment = Alignment.End) {
+                // Precio individual SIEMPRE en CLP
                 Text(
                     text = NumberFormat.getCurrencyInstance(Locale("es", "CL")).apply { maximumFractionDigits = 0 }.format(s.monto),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
@@ -221,21 +317,18 @@ fun SuscripcionCard(s: Suscripcion, onDelete: () -> Unit, onEdit: () -> Unit) { 
 
                 Spacer(Modifier.height(16.dp))
 
-                // Agrupamos Editar y Eliminar en una Fila
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Texto "Editar"
                     Text(
                         text = "Editar",
-                        color = MaterialTheme.colorScheme.primary, // Color primario
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
-                            .pointerInput(Unit) { detectTapGestures(onTap = { onEdit() }) } // Acción
+                            .pointerInput(Unit) { detectTapGestures(onTap = { onEdit() }) }
                     )
 
-                    Spacer(Modifier.width(16.dp)) // Espacio
+                    Spacer(Modifier.width(16.dp))
 
-                    // Texto "Eliminar"
                     Text(
                         text = "Eliminar",
                         color = MaterialTheme.colorScheme.error,
